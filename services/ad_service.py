@@ -187,6 +187,14 @@ class ActiveDirectoryService:
         target = group_name.strip().lower()
         return any(target == g or target in g for g in user_groups)
 
+    def validate_username(self, username: str) -> bool:
+        """Sanitizes and validates domain username format."""
+        if not username or len(username) > 100:
+            return False
+        if any(c in username for c in ';|&$`<>"\''):
+            return False
+        return True
+
     def authenticate_user(self, username: str, password: str,
                           domain_override: Optional[str] = None,
                           dc_override: Optional[str] = None) -> Dict[str, Any]:
@@ -200,11 +208,14 @@ class ActiveDirectoryService:
                 'message_fa': 'نام کاربری و کلمه عبور الزامی است.'
             }
 
-        domain = domain_override or self._domain_info.get('domain', '')
-        dc = dc_override or self._domain_info.get('domain_controller', '')
-
-        # Clean user representation
         clean_user = username.strip()
+        if not self.validate_username(clean_user):
+            return {
+                'success': False,
+                'message_fa': 'فرمت نام کاربری نامعتبر است یا دارای نویسه‌های غیرمجاز می‌باشد.'
+            }
+
+        domain = domain_override or self._domain_info.get('domain', '')
         if '\\' in clean_user:
             domain_part, clean_user = clean_user.split('\\', 1)
             domain = domain or domain_part

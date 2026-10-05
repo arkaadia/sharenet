@@ -18,6 +18,16 @@ logger = get_logger('smb_service')
 class SMBService:
     """Enterprise service for SMB discovery, ACL permissions evaluation, and storage metrics."""
 
+    def normalize_server_name(self, server_name: str) -> str:
+        """Strips leading/trailing backslashes and slashes."""
+        if not server_name:
+            return ''
+        import re
+        clean = server_name.strip().replace('/', '\\')
+        clean = re.sub(r'^\\+', '', clean)
+        clean = re.sub(r'\\+$', '', clean)
+        return clean
+
     def __init__(self, mock_mode: Optional[bool] = None):
         self.mock_mode = mock_mode if mock_mode is not None else (sys.platform != 'win32')
         # Default simulated corporate file servers catalog for tests and non-Windows runtimes

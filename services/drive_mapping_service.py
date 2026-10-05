@@ -20,6 +20,15 @@ CONNECT_REDIRECT       = 0x00000080
 class DriveMappingService:
     """Enterprise service for mapping, unmapping, and maintaining Windows network drives."""
 
+    def format_drive_letter(self, drive_letter: str) -> str:
+        """Normalizes drive letter to 'Z:' uppercase format."""
+        if not drive_letter:
+            return ''
+        clean = drive_letter.strip().upper()
+        if not clean.endswith(':'):
+            clean = f'{clean}:'
+        return clean
+
     def __init__(self, mock_mode: Optional[bool] = None):
         self.mock_mode = mock_mode if mock_mode is not None else (sys.platform != 'win32')
         # In-memory mapped drives catalog for testing and non-Windows environments
@@ -115,9 +124,18 @@ class DriveMappingService:
         if not clean_drive.endswith(':'):
             clean_drive = f'{clean_drive}:'
 
+        # Protect system letters
+        if clean_drive in ('A:', 'B:', 'C:'):
+            return False, f'استفاده از حرف درایو {clean_drive} برای اتصال شبکه مجاز نیست.'
+
         clean_unc = unc_path.strip().replace('/', '\\')
         if not clean_unc.startswith('\\\\'):
             clean_unc = f'\\\\{clean_unc}'
+
+        # Validate UNC format
+        parts = clean_unc[2:].split('\\')
+        if len(parts) < 2 or not all(bool(p.strip()) for p in parts[:2]):
+            return False, 'مسیر شبکه (UNC) نامعتبر است. فرمت صحیح: \\\\server\\share'
 
         # Check if already occupied
         current_drives = [d['drive_letter'] for d in self.get_existing_network_drives()]
